@@ -1,5 +1,6 @@
 package com.google.firebase.codelab.friendlychat
 
+import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.view.Menu
@@ -7,20 +8,26 @@ import android.view.MenuItem
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.firebase.ui.auth.AuthUI
-import com.firebase.ui.auth.AuthUI.IdpConfig.*
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.ktx.auth
 import com.google.firebase.codelab.friendlychat.databinding.ActivityMainBinding
+import com.google.firebase.ktx.Firebase
 import com.google.firebase.storage.StorageReference
 
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private lateinit var manager: LinearLayoutManager
+    private lateinit var auth: FirebaseAuth
+
+    val intentForSignInActivity by lazy {
+        Intent(this, SignInActivity::class.java)
+    }
 
     private val openDocument =
         registerForActivityResult(MyOpenDocumentContract()) { uri ->
-        uri?.let { onImageSelected(it) }
-    }
+            uri?.let { onImageSelected(it) }
+        }
 
-    // TODO: implement Firebase instance variables
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -28,8 +35,9 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // Initialize Firebase Auth and check if the user is signed in
-        // TODO: implement
+        auth = Firebase.auth
+        checkAuthForCurrentUser()
+
 
         // Initialize Realtime Database and FirebaseRecyclerAdapter
         // TODO: implement
@@ -37,7 +45,8 @@ class MainActivity : AppCompatActivity() {
         // Disable the send button when there's no text in the input field
         // See MyButtonObserver for details
         binding.messageEditText.addTextChangedListener(
-            MyButtonObserver(binding.sendButton))
+            MyButtonObserver(binding.sendButton)
+        )
 
         // When the send button is clicked, send a text message
         // TODO: implement
@@ -48,19 +57,28 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+
     public override fun onStart() {
         super.onStart()
-        // Check if user is signed in.
-        // TODO: implement
+        checkAuthForCurrentUser()
     }
 
-    public override fun onPause() {
-        super.onPause()
-    }
 
     public override fun onResume() {
         super.onResume()
+        checkAuthForCurrentUser()
     }
+
+    private fun getPhotoUrl(): String? {
+        val user = auth.currentUser
+        return user?.photoUrl?.toString()
+    }
+
+    private fun getUserName(): String {
+        val user = auth.currentUser
+        return user?.displayName ?: ANONYMOUS
+    }
+
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         val inflater = menuInflater
@@ -90,7 +108,17 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun signOut() {
-        // TODO: implement
+        AuthUI.getInstance().signOut(this)
+        startActivity(intentForSignInActivity)
+    }
+
+    private fun checkAuthForCurrentUser() {
+        if (auth.currentUser == null) {
+            startActivity(intentForSignInActivity)
+            finish()
+            return
+        }
+
     }
 
     companion object {
