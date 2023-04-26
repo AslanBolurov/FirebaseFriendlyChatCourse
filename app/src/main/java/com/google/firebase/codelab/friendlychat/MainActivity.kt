@@ -3,6 +3,7 @@ package com.google.firebase.codelab.friendlychat
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
 import androidx.appcompat.app.AppCompatActivity
@@ -11,13 +12,19 @@ import com.firebase.ui.auth.AuthUI
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.codelab.friendlychat.databinding.ActivityMainBinding
+import com.google.firebase.codelab.friendlychat.model.FriendlyMessage
+import com.google.firebase.database.DatabaseReference
+import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.database.ktx.database
 import com.google.firebase.ktx.Firebase
 import com.google.firebase.storage.StorageReference
+import com.google.firebase.storage.ktx.storage
 
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private lateinit var manager: LinearLayoutManager
     private lateinit var auth: FirebaseAuth
+    private lateinit var db: FirebaseDatabase
 
     val intentForSignInActivity by lazy {
         Intent(this, SignInActivity::class.java)
@@ -35,6 +42,9 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        db = Firebase.database
+        val messagesRef = db.reference.child(MESSAGES_CHILD)
+
         auth = Firebase.auth
         checkAuthForCurrentUser()
 
@@ -48,8 +58,16 @@ class MainActivity : AppCompatActivity() {
             MyButtonObserver(binding.sendButton)
         )
 
-        // When the send button is clicked, send a text message
-        // TODO: implement
+        binding.sendButton.setOnClickListener {
+            val friendlyMessage = FriendlyMessage(
+                text = binding.messageEditText.text.toString(),
+                name = getUserName(),
+                photoUrl = getPhotoUrl(),
+                imageUrl = null
+            )
+            messagesRef.child(MESSAGES_CHILD).push().setValue(friendlyMessage)
+            binding.messageEditText.setText("")
+        }
 
         // When the image button is clicked, launch the image picker
         binding.addMessageImageView.setOnClickListener {
@@ -97,14 +115,50 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun onImageSelected(uri: Uri) {
-        // TODO: implement
+        Log.d(TAG, "onImageSelected, Uri: $uri")
+        val user = auth.currentUser
+        val tempMessage =
+            FriendlyMessage(
+                null, getUserName(), getPhotoUrl(), LOADING_IMAGE_URL
+            )
+        db.reference.child(MESSAGES_CHILD).push().setValue(
+            tempMessage,
+            DatabaseReference.CompletionListener { dbError, dbRef ->
+                if (dbError != null) {
+                    Log.e(TAG, "Unable to write message to database.",dbError.toException() )
+                return@CompletionListener
+                }
+                val key=dbRef.key
+                val storageReference=Firebase.storage
+                    .getReference(user!!.uid)
+                    .child(key!!)
+                    .child(uri.lastPathSegment!!)
+                putImageInStorage(storageReference,uri,key)
+            }
+        )
+
+
     }
 
     private fun putImageInStorage(
         storageReference: StorageReference, uri: Uri, key: String?
     ) {
-        // Upload the image to Cloud Storage
-        // TODO: implement
+
+        storageReference.putFile(uri)
+            .addOnSuccessListener(this) { task ->
+            task.metadata!!.reference!!.downloadUrl
+                .addOnSuccessListener {uri ->
+                    val friendlyMessage =
+                        FriendlyMessage(null, getUserName(), getPhotoUrl(), uri.toString())
+                    db.reference
+                        .child(MESSAGES_CHILD)
+                        .child(key!!)
+                        .setValue(friendlyMessage)
+                }
+        }
+            .addOnFailureListener(this){ e ->
+                Log.e(TAG, "Image upload task was unsuccessful.", e)
+            }
     }
 
     private fun signOut() {
