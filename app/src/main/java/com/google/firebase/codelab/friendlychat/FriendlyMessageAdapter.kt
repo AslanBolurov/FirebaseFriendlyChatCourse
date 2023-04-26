@@ -53,9 +53,7 @@ class FriendlyMessageAdapter(
         }
     }
 
-    override fun onBindViewHolder(
-        holder: ViewHolder, position: Int, model: FriendlyMessage
-    ) {
+    override fun onBindViewHolder(holder: ViewHolder, position: Int, model: FriendlyMessage) {
         if (options.snapshots[position].text != null) {
             (holder as MessageViewHolder).bind(model)
         } else {
@@ -69,7 +67,15 @@ class FriendlyMessageAdapter(
 
     inner class MessageViewHolder(private val binding: MessageBinding) : ViewHolder(binding.root) {
         fun bind(item: FriendlyMessage) {
-            // TODO: implement
+            binding.messageTextView.text = item.text
+            setTextColor(item.name, binding.messageTextView)
+
+            binding.messengerTextView.text = item.name ?: ANONYMOUS
+            if (item.photoUrl != null) {
+                loadImageIntoView(binding.messengerImageView, item.photoUrl)
+            } else {
+                binding.messengerImageView.setImageResource(R.drawable.ic_account_circle_black_36dp)
+            }
         }
 
         private fun setTextColor(userName: String?, textView: TextView) {
@@ -86,13 +92,18 @@ class FriendlyMessageAdapter(
     inner class ImageMessageViewHolder(private val binding: ImageMessageBinding) :
         ViewHolder(binding.root) {
         fun bind(item: FriendlyMessage) {
-            // TODO: implement
+            loadImageIntoView(binding.messageImageView, item.imageUrl!!, false)
+
+            binding.messengerTextView.text = item.name ?: ANONYMOUS
+            if (item.photoUrl != null) {
+                loadImageIntoView(binding.messengerImageView, item.photoUrl)
+            } else {
+                binding.messengerImageView.setImageResource(R.drawable.ic_account_circle_black_36dp)
+            }
         }
     }
 
-    private fun loadImageIntoView(
-        view: ImageView, url: String, isCircular: Boolean = true
-    ) {
+    private fun loadImageIntoView(view: ImageView, url: String, isCircular: Boolean = true) {
         if (url.startsWith("gs://")) {
             val storageReference = Firebase.storage.getReferenceFromUrl(url)
             storageReference.downloadUrl
@@ -112,13 +123,8 @@ class FriendlyMessageAdapter(
         }
     }
 
-    private fun loadWithGlide(
-        view: ImageView, url: String, isCircular: Boolean = true
-    ) {
-        Glide
-            .with(view.context)
-            .load(url)
-            .into(view)
+    private fun loadWithGlide(view: ImageView, url: String, isCircular: Boolean = true) {
+        Glide.with(view.context).load(url).into(view)
         var requestBuilder = Glide.with(view.context).load(url)
         if (isCircular) {
             requestBuilder = requestBuilder.transform(CircleCrop())
