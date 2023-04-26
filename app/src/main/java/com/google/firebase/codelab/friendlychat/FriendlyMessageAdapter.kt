@@ -1,3 +1,18 @@
+/**
+ * Copyright Google Inc. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.google.firebase.codelab.friendlychat
 
 import android.graphics.Color
@@ -38,9 +53,7 @@ class FriendlyMessageAdapter(
         }
     }
 
-    override fun onBindViewHolder(
-        holder: ViewHolder, position: Int, model: FriendlyMessage
-    ) {
+    override fun onBindViewHolder(holder: ViewHolder, position: Int, model: FriendlyMessage) {
         if (options.snapshots[position].text != null) {
             (holder as MessageViewHolder).bind(model)
         } else {
@@ -52,29 +65,21 @@ class FriendlyMessageAdapter(
         return if (options.snapshots[position].text != null) VIEW_TYPE_TEXT else VIEW_TYPE_IMAGE
     }
 
-    inner class MessageViewHolder(
-        private val binding: MessageBinding
-    ) : ViewHolder(binding.root) {
+    inner class MessageViewHolder(private val binding: MessageBinding) : ViewHolder(binding.root) {
         fun bind(item: FriendlyMessage) {
             binding.messageTextView.text = item.text
             setTextColor(item.name, binding.messageTextView)
 
             binding.messengerTextView.text = item.name ?: ANONYMOUS
-
             if (item.photoUrl != null) {
                 loadImageIntoView(binding.messengerImageView, item.photoUrl)
             } else {
-                binding.messengerImageView.setImageResource(
-                    R.drawable.ic_account_circle_black_36dp
-                )
+                binding.messengerImageView.setImageResource(R.drawable.ic_account_circle_black_36dp)
             }
-
         }
 
         private fun setTextColor(userName: String?, textView: TextView) {
-            if (userName != ANONYMOUS && currentUserName == userName
-                && userName != null
-            ) {
+            if (userName != ANONYMOUS && currentUserName == userName && userName != null) {
                 textView.setBackgroundResource(R.drawable.rounded_message_blue)
                 textView.setTextColor(Color.WHITE)
             } else {
@@ -87,25 +92,18 @@ class FriendlyMessageAdapter(
     inner class ImageMessageViewHolder(private val binding: ImageMessageBinding) :
         ViewHolder(binding.root) {
         fun bind(item: FriendlyMessage) {
-            loadImageIntoView(binding.messageImageView, item.imageUrl!!)
+            loadImageIntoView(binding.messageImageView, item.imageUrl!!, false)
 
             binding.messengerTextView.text = item.name ?: ANONYMOUS
-
             if (item.photoUrl != null) {
                 loadImageIntoView(binding.messengerImageView, item.photoUrl)
             } else {
-                binding.messengerImageView.setImageResource(
-                    R.drawable.ic_account_circle_black_36dp
-                )
+                binding.messengerImageView.setImageResource(R.drawable.ic_account_circle_black_36dp)
             }
-
-
         }
     }
 
-    private fun loadImageIntoView(
-        view: ImageView, url: String, isCircular: Boolean = true
-    ) {
+    private fun loadImageIntoView(view: ImageView, url: String, isCircular: Boolean = true) {
         if (url.startsWith("gs://")) {
             val storageReference = Firebase.storage.getReferenceFromUrl(url)
             storageReference.downloadUrl
@@ -125,13 +123,8 @@ class FriendlyMessageAdapter(
         }
     }
 
-    private fun loadWithGlide(
-        view: ImageView, url: String, isCircular: Boolean = true
-    ) {
-        Glide
-            .with(view.context)
-            .load(url)
-            .into(view)
+    private fun loadWithGlide(view: ImageView, url: String, isCircular: Boolean = true) {
+        Glide.with(view.context).load(url).into(view)
         var requestBuilder = Glide.with(view.context).load(url)
         if (isCircular) {
             requestBuilder = requestBuilder.transform(CircleCrop())
