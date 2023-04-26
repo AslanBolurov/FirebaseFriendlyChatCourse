@@ -6,9 +6,12 @@ import android.os.Bundle
 import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
+import android.widget.ProgressBar
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.isVisible
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.firebase.ui.auth.AuthUI
+import com.firebase.ui.database.FirebaseRecyclerOptions
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.codelab.friendlychat.databinding.ActivityMainBinding
@@ -25,6 +28,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var manager: LinearLayoutManager
     private lateinit var auth: FirebaseAuth
     private lateinit var db: FirebaseDatabase
+    private lateinit var adapter: FriendlyMessageAdapter
+
 
     val intentForSignInActivity by lazy {
         Intent(this, SignInActivity::class.java)
@@ -42,15 +47,27 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        db = Firebase.database
-        val messagesRef = db.reference.child(MESSAGES_CHILD)
-
         auth = Firebase.auth
         checkAuthForCurrentUser()
 
 
         // Initialize Realtime Database and FirebaseRecyclerAdapter
-        // TODO: implement
+        db = Firebase.database
+        val messagesRef = db.reference.child(MESSAGES_CHILD)
+
+        val options = FirebaseRecyclerOptions.Builder<FriendlyMessage>()
+            .setQuery(messagesRef, FriendlyMessage::class.java)
+            .build()
+        adapter = FriendlyMessageAdapter(options, getUserName())
+        binding.progressBar.visibility = ProgressBar.INVISIBLE
+        val manager = LinearLayoutManager(this)
+        manager.stackFromEnd = true
+        binding.messageRecyclerView.layoutManager = manager
+        binding.messageRecyclerView.adapter = adapter
+
+        adapter.registerAdapterDataObserver(
+            MyScrollToBottomObserver(binding.messageRecyclerView,adapter,manager)
+        )
 
         // Disable the send button when there's no text in the input field
         // See MyButtonObserver for details
@@ -81,8 +98,13 @@ class MainActivity : AppCompatActivity() {
         checkAuthForCurrentUser()
     }
 
+    override fun onPause() {
+        adapter.stopListening()
+        super.onPause()
+    }
 
     public override fun onResume() {
+        adapter.startListening()
         super.onResume()
         checkAuthForCurrentUser()
     }
@@ -125,15 +147,15 @@ class MainActivity : AppCompatActivity() {
             tempMessage,
             DatabaseReference.CompletionListener { dbError, dbRef ->
                 if (dbError != null) {
-                    Log.e(TAG, "Unable to write message to database.",dbError.toException() )
-                return@CompletionListener
+                    Log.e(TAG, "Unable to write message to database.", dbError.toException())
+                    return@CompletionListener
                 }
-                val key=dbRef.key
-                val storageReference=Firebase.storage
+                val key = dbRef.key
+                val storageReference = Firebase.storage
                     .getReference(user!!.uid)
                     .child(key!!)
                     .child(uri.lastPathSegment!!)
-                putImageInStorage(storageReference,uri,key)
+                putImageInStorage(storageReference, uri, key)
             }
         )
 
@@ -146,17 +168,17 @@ class MainActivity : AppCompatActivity() {
 
         storageReference.putFile(uri)
             .addOnSuccessListener(this) { task ->
-            task.metadata!!.reference!!.downloadUrl
-                .addOnSuccessListener {uri ->
-                    val friendlyMessage =
-                        FriendlyMessage(null, getUserName(), getPhotoUrl(), uri.toString())
-                    db.reference
-                        .child(MESSAGES_CHILD)
-                        .child(key!!)
-                        .setValue(friendlyMessage)
-                }
-        }
-            .addOnFailureListener(this){ e ->
+                task.metadata!!.reference!!.downloadUrl
+                    .addOnSuccessListener { uri ->
+                        val friendlyMessage =
+                            FriendlyMessage(null, getUserName(), getPhotoUrl(), uri.toString())
+                        db.reference
+                            .child(MESSAGES_CHILD)
+                            .child(key!!)
+                            .setValue(friendlyMessage)
+                    }
+            }
+            .addOnFailureListener(this) { e ->
                 Log.e(TAG, "Image upload task was unsuccessful.", e)
             }
     }
